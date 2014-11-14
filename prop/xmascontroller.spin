@@ -32,7 +32,7 @@ PUB hexval
       return 10+curChar-"A"
   return -1
 
-PUB handle_L2 | v
+PUB handle_L2 | v, channel
   v:=0
   repeat
       curChar := rxserial.rx
@@ -42,9 +42,9 @@ PUB handle_L2 | v
           v := (v<<4) | (10+curChar-"A")
       elseif (curChar==13)
           channel := (v>>28)
-          v:=v & 0x03FFFFFF
+          v:=v & $03FFFFFF
           pst.Str(string(" channel="))
-          pstr.Dec(channel)
+          pst.Dec(channel)
           pst.Str(string(" command="))
           pst.Hex(v,8)
           pst.NewLine
