@@ -11,6 +11,9 @@
 '' the received characters out the Parallax Serial Terminal (which on a prop demo board will go
 '' out the USB; use Parallax Serial Terminal application on the PC to view the characters)
 ''
+'' On the pi, make sure to put "init_uart_clock=7372800" in /boot/config.txt
+'' Then load minicom using sudo minicom -b 460800 -D /dev/ttyAMA0 
+''
 '' =================================================================================================
 
 CON 
