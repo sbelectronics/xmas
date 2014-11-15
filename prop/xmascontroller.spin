@@ -25,20 +25,23 @@ VAR
   long errorCount
   long loopCount
 
-PUB main | b                                             
+PUB main | b, channel                                             
   rxserial.start(8, 460800)
   pst.start(115200)
 
   repeat
       b := rxserial.rx
       'pst.Hex(b,8)
-      'pst.NewLine
+      'pst.NewLine 
 
       loopCount++
       if (b==$12345678)
           testCount++
-      else
+      else                                                
           errorCount++
+      
+      channel := b >> 28
+      b &= $0FFCCFFF ' <addr:2><bright:2><b><g><r>
 
       if ((loopCount // 1000) == 0)
           dumpStats       
@@ -49,9 +52,3 @@ PUB dumpStats
     pst.Str(string(" errorCount = "))
     pst.Dec(errorCount)
     pst.NewLine  
-  
-
-
-
-
-  
