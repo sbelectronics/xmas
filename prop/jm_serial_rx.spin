@@ -14,7 +14,7 @@
 
 con
 
-  BUF_SIZE = 128                                                ' 16, 32, 64, 128, 256, or 512
+  BUF_SIZE = 512                                                ' 16, 32, 64, 128, 256, or 512
   BUF_MASK = BUF_SIZE - 1
   
 
