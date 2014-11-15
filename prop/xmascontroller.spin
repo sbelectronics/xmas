@@ -21,6 +21,11 @@ OBJ
 
 VAR
   byte curChar
+  long testCount
+  long unknownCount
+  long errorCount
+  long otherCount
+  long loopCount
 
 PUB main | b
   rxserial.start(8, 460800)
@@ -32,6 +37,11 @@ PUB main | b
           handle_L
       else
           getchar
+          unknownCount++
+
+      loopCount++
+      if ((loopCount // 1000) == 0)
+          dumpStats 
 
 PUB getchar
   curChar := rxserial.rx
@@ -47,18 +57,37 @@ PUB handle_L | v, channel
       elseif (curChar==13)
           channel := (v>>28)
           v:=v & $03FFFFFF
-          pst.Str(string(" channel="))
-          pst.Dec(channel)
-          pst.Str(string(" command="))
-          pst.Hex(v,8)
-          pst.NewLine
+          'pst.Str(string(" channel="))
+          'pst.Dec(channel)
+          'pst.Str(string(" command="))
+          'pst.Hex(v,8)
+          'pst.NewLine
+
+          if (v==$02345678)
+              testCount++
+          else
+              pst.Hex(v,8)
+              pst.NewLine
+              otherCount++
+
           ' handle_L always returns with a character in curChar
           curChar := rxserial.rx
           return
       else
           ' invalid character
+          errorCount++
           return
-  
+
+PUB dumpStats
+    pst.Str(string("testCount = "))
+    pst.Dec(testCount)
+    pst.Str(string(" otherCount = "))
+    pst.Dec(otherCount)
+    pst.Str(string(" errorCount = "))
+    pst.Dec(errorCount)
+    pst.Str(string(" unknownCount = "))
+    pst.Dec(unknownCount)
+    pst.NewLine  
   
 
 
