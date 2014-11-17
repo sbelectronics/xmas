@@ -8,8 +8,22 @@
 import serial
 import time
 
+FPS=20
+PERIOD=(1.0/FPS)
+
 ser = serial.Serial('/dev/ttyAMA0', 460800)
-for i in range(0, 100000):
-    ser.write("12345678\r")
+for j in range(0, 100):
+    tStart = time.time()
+    for i in range(0, 100):
+        ser.write("02345678\r")
+        ser.write("12345678\r")
+        ser.write("22345678\r")
+        ser.write("32345678\r")
+        ser.write("42345678\r")
+        ser.write("52345678\r")
+    while (time.time()-tStart < PERIOD):
+        pass
+
+ser.write("FFFFFFFF\r")
 
 
