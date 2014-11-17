@@ -30,12 +30,13 @@ OBJ
   xmas1 : "xmas2"
   xmas2 : "xmas2"
   xmas3 : "xmas2"
+  xmas4 : "xmas2"
+  xmas5 : "xmas2"  
 
 VAR
   byte curChar
   long testCount
   long errorCount
-  long loopCount
 
 PUB main | b, channel, bright                                             
   rxserial.start(PIN_RXSERIAL, 460800)
@@ -45,14 +46,21 @@ PUB main | b, channel, bright
   xmas1.start(PIN_LIGHTS1)
   xmas2.start(PIN_LIGHTS2)
   xmas3.start(PIN_LIGHTS3)
+  xmas4.start(PIN_LIGHTS3)
+  'xmas5.start(PIN_LIGHTS3)    ' we can't enable xmas5 unless we turn off the serial terminal
 
   repeat
       b := rxserial.rx
       'pst.Hex(b,8)
-      'pst.NewLine 
-      
+      'pst.NewLine
+
+      if (b==$FFFFFFFF)
+          dumpStats
+          next
+
+      ' <channel:1><addr:2><bright:2><b><g><r>
+        
       channel := b >> 28
-      b &= $0FFFFFFF ' <addr:2><bright:2><b><g><r>
 
       ' set the maximum brightness to $CC
       bright := (b >> 12) & $FF
@@ -60,7 +68,6 @@ PUB main | b, channel, bright
           bright := $CC
       b := (b & $0FF00FFF) | (bright << 12) 
 
-      loopCount++
       if (b==$02345678)
           testCount++
       else                                                
@@ -71,9 +78,8 @@ PUB main | b, channel, bright
           1: xmas1.send_raw_command(b)
           2: xmas2.send_raw_command(b)
           3: xmas3.send_raw_command(b)
-
-      if ((loopCount // 1000) == 0)
-          dumpStats       
+          4: xmas4.send_raw_command(b)
+          '5: xmas5.send_raw_command(b)   
 
 PUB dumpStats
     pst.Str(string("testCount = "))
