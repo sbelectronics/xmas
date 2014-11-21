@@ -6,7 +6,11 @@
 """
 
 import serial
+import sys
 import time
+import threading
+import tty
+import termios
 
 MAX_BULBS = 100
 
@@ -36,15 +40,128 @@ class Frame:
     def setBulb(self, bulb, intensity, color):
         self.commands[bulb] = (self.channel<<28) | (bulb<<20) | (intensity<<12) | color
 
-class Christmas:
+class Animation(object):
+   def __init__(self, frameset):
+       self.frameset = frameset
+       self.maxIndex = self.frameset.totalBulbCount()
+
+   def update(self):
+       pass
+
+class SimpleSequenceAnimation(Animation):
+   def __init__(self, frameset):
+       super(SimpleSequenceAnimation, self).__init__(frameset)
+
+       self.lastFrame = None
+       self.lastFrameIndex = 0
+       self.index=0
+       self.color = COLOR_MAGENTA
+
+   def update(self):
+       if (self.index >= self.maxIndex):
+           self.index = 0
+       (frame, frameIndex) = self.frameset.indexToFrame(index)
+       frame.setBulb(frameIndex, 0xCC, COLOR_MAGENTA)
+       if (self.lastFrame):
+           self.lastFrame.setBulb(self.lastFrameIndex, 0xCC, COLOR_BLACK)
+       self.lastFrame=self.frame
+       self.lastFrameIndex=self.frameIndex
+
+       self.frameset.displayAllFrames()
+
+       self.index = self.index + 1
+
+class RainbowSequenceAnimation(Animation):
+    def __init__(self, frameset, colors=[], numEach=1):
+        super(RainbowSequenceAnimation, self).__init__(frameset)
+        self.colors = colors
+        self.numEach = numEach
+        self.offset = 0
+
+    def update(self):
+        for i in range(0, self.frameset.totalBulbCount()):
+           (frame, frameIndex) = self.frameset.indexToFrame(i)
+           frame.setBulb(frameIndex, 0xCC, self.colors[ ((i+self.offset) % (len(self.colors)*self.numEach))/self.numEach ])
+
+        self.frameset.displayAllFrames()
+
+        self.offset=self.offset+1
+
+class FadeColorAnimation(Animation):
+   def __init__(self, frameset, colors=[], numEach=1):
+       super(FadeColorAnimation, self).__init__(frameset)
+       self.direction = 1
+       self.intensity = 0
+       self.colors = colors
+       self.numEach = numEach
+
+   def update(self):
+       for i in range(0, self.maxIndex):
+           (frame, frameIndex) = self.frameset.indexToFrame(i)
+           frame.setBulb(frameIndex, self.intensity, self.colors[ ((i) % len(self.colors*self.numEach))/self.numEach ])
+
+       self.frameset.displayAllFrames()
+
+       self.intensity=self.intensity+self.direction
+       if (self.intensity>=0x40):
+           self.direction=-1
+       elif (self.intensity<=0):
+           self.direction=1
+
+class AllColorCycleAnimation(Animation):
+    def __init__(self, frameset, colors=[]):
+        super(AllColorCycleAnimation, self).__init__(frameset)
+        self.offset = 0
+        self.colors = colors
+
+    def update(self):
+        for i in range(0, self.maxIndex):
+            (frame, frameIndex) = self.frameset.indexToFrame(i)
+            frame.setBulb(frameIndex, 0xCC, self.colors[self.offset % len(self.colors)])
+
+        self.frameset.displayAllFrames()
+
+        self.offset = self.offset+1
+
+class SolidColorAnimation(Animation):
+    def __init__(self, frameset, colors=[]):
+        super(SolidColorAnimation, self).__init__(frameset)
+        self.done = False
+        self.colors = colors
+
+    def update(self):
+        if (not self.done):
+            self.offset = 0
+            for i in range(0, self.maxIndex):
+                (frame, frameIndex) = self.frameset.indexToFrame(i)
+                frame.setBulb(frameIndex, 0xCC, self.colors[self.offset % len(self.colors)])
+                self.offset = self.offset + 1
+
+            self.frameset.displayAllFrames()
+
+            self.done = True
+
+class Christmas(threading.Thread):
    def __init__(self):
+       super(Christmas, self).__init__()
+       self.daemon = True
        self.ser = serial.Serial('/dev/ttyAMA0', 460800)
        self.frames = []
        self.setFPS(5)
        self.setup()
        self.enumerateAllFrames()
+       self.nextAnimation = RainbowSequenceAnimation(self, [COLOR_WHITE, COLOR_BLUE], numEach=3)
+       self.animation = None
+       self.start()
+
+   def setAnimation(self, anim):
+       self.nextAnimation = anim
 
    def setFPS(self, fps):
+       if (fps<1):
+           fps = 1
+       if (fps>20):
+           fps = 20
        self.FPS = fps;
        self.period = 1.0/fps
 
@@ -94,110 +211,89 @@ class Christmas:
            else:
                i=i-frame.numBulbs
 
-   def runSimpleSequence(self):
-       lastFrame = None
-       lastFrameIndex = 0
-       index=0
-       maxIndex = self.totalBulbCount()
-       color = COLOR_MAGENTA
+   def run(self):
        while True:
            tStart = time.time()
-           if (index >= maxIndex):
-               index = 0
-           (frame, frameIndex) = self.indexToFrame(index)
-           frame.setBulb(frameIndex, 0xCC, COLOR_MAGENTA)
-           if (lastFrame):
-               lastFrame.setBulb(lastFrameIndex, 0xCC, COLOR_BLACK)
-           lastFrame=frame
-           lastFrameIndex=frameIndex
 
-           self.displayAllFrames()
+           if (self.nextAnimation) :
+               self.animation = self.nextAnimation
+               self.nextAnimation = None
 
-           index = index + 1
+           self.animation.update()
 
            while (time.time()-tStart) < self.period:
                time.sleep(0.0001)
-
-   def runRainbowSequence(self, colors=[], numEach=1):
-       offset = 0
-       maxIndex = self.totalBulbCount()
-       while True:
-           tStart = time.time()
-           for i in range(0, self.totalBulbCount()):
-               (frame, frameIndex) = self.indexToFrame(i)
-               frame.setBulb(frameIndex, 0xCC, colors[ ((i+offset) % (len(colors)*numEach))/numEach ])
-
-           self.displayAllFrames()
-
-           offset=offset+1
-
-           while (time.time()-tStart) < self.period:
-               time.sleep(0.0001)
-
-   def fadeColors(self, colors=[], numEach=1):
-       maxIndex = self.totalBulbCount()
-       direction = 1
-       intensity = 0
-       while True:
-           tStart = time.time()
-           for i in range(0, self.totalBulbCount()):
-               (frame, frameIndex) = self.indexToFrame(i)
-               frame.setBulb(frameIndex, intensity, colors[ ((i) % len(colors*numEach))/numEach ])
-
-           self.displayAllFrames()
-
-           intensity=intensity+direction
-           if (intensity>=0x40):
-               direction=-1
-           elif (intensity<=0):
-               direction=1
-
-           while (time.time()-tStart) < self.period:
-               time.sleep(0.0001)
-
-   def allColorCycle(self, colors=[]):
-       maxIndex = self.totalBulbCount()
-       offset = 0
-       while True:
-           tStart = time.time()
-           for i in range(0, self.totalBulbCount()):
-               (frame, frameIndex) = self.indexToFrame(i)
-               frame.setBulb(frameIndex, 0xCC, colors[offset % len(colors)])
-
-           self.displayAllFrames()
-
-           offset = offset+1
-
-           while (time.time()-tStart) < self.period:
-               time.sleep(0.0001)
-
-   def solidColor(self, colors=[]):
-       maxIndex = self.totalBulbCount()
-       while True:
-           tStart = time.time()
-           offset = 0
-           for i in range(0, self.totalBulbCount()):
-               (frame, frameIndex) = self.indexToFrame(i)
-               frame.setBulb(frameIndex, 0xCC, colors[offset % len(colors)])
-               offset = offset + 1
-
-           self.displayAllFrames()
-
-           while (time.time()-tStart) < self.period:
-               time.sleep(0.0001)
-
-
 
 class MyChristmas(Christmas):
    def setup(self):
        self.frames.append(Frame(0, 50))
        self.frames.append(Frame(1, 25))
 
-c = MyChristmas()
-#c.solidColor([COLOR_WHITE])
-c.runRainbowSequence([COLOR_WHITE, COLOR_BLUE],numEach=3)
-#c.fadeColors([COLOR_RED,COLOR_GREEN,COLOR_BLUE], numEach=1)
-#c.allColorCycle([COLOR_RED,COLOR_GREEN,COLOR_BLUE,COLOR_WHITE,COLOR_MAGENTA,COLOR_YELLOW])
+def getch():
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(fd)
+        ch = sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    return ch
+
+def main():
+    c = MyChristmas()
+
+    print "q ... quit"
+    print "+ ... increase fps"
+    print "- ... decrease fps"
+    print "r ... solid red"
+    print "g ... solid green"
+    print "b ... solid blue"
+    print "w ... solid white"
+    print "1 ... blue white sequence"
+    print "2 ... yellow green sequence"
+    print "3 ... fade"
+    print "4 ... all color cycle"
+
+    while True:
+        ch = getch()
+        if (ch=='q'):
+            return
+        elif (ch=='r'):
+            c.setAnimation(SolidColorAnimation(c,[COLOR_RED]))
+        elif (ch=='g'):
+            c.setAnimation(SolidColorAnimation(c,[COLOR_GREEN]))
+        elif (ch=='b'):
+            c.setAnimation(SolidColorAnimation(c,[COLOR_BLUE]))
+        elif (ch=='w'):
+            c.setAnimation(SolidColorAnimation(c,[COLOR_WHITE]))
+        elif (ch=='1'):
+            c.setAnimation(RainbowSequenceAnimation(c,[COLOR_WHITE, COLOR_BLUE], numEach=3))
+        elif (ch=='2'):
+            c.setAnimation(RainbowSequenceAnimation(c,[COLOR_YELLOW, COLOR_GREEN], numEach=3))
+        elif (ch=='3'):
+            c.setAnimation(FadeColorAnimation(c,[COLOR_RED, COLOR_GREEN, COLOR_BLUE], numEach=1))
+        elif (ch=='4'):
+            c.setAnimation(AllColorCycleAnimation(c,[COLOR_RED,COLOR_GREEN,COLOR_BLUE,COLOR_WHITE,COLOR_MAGENTA,COLOR_YELLOW]))
+        elif (ch=='+'):
+            c.setFPS(c.FPS+1)
+        elif (ch=='-'):
+            c.setFPS(c.FPS-1)
+
+        time.sleep(0.01)
+
+
+
+
+
+
+
+    #c.solidColor([COLOR_WHITE])
+    #c.runRainbowSequence([COLOR_WHITE, COLOR_BLUE],numEach=3)
+    #c.fadeColors([COLOR_RED,COLOR_GREEN,COLOR_BLUE], numEach=1)
+    #c.allColorCycle([COLOR_RED,COLOR_GREEN,COLOR_BLUE,COLOR_WHITE,COLOR_MAGENTA,COLOR_YELLOW])
+
+if __name__ == "__main__":
+    main()
 
 
 
