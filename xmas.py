@@ -125,7 +125,7 @@ class Christmas:
            tStart = time.time()
            for i in range(0, self.totalBulbCount()):
                (frame, frameIndex) = self.indexToFrame(i)
-               frame.setBulb(frameIndex, 0xCC, colors[ ((i+offset) % len(colors*numEach))/numEach ])
+               frame.setBulb(frameIndex, 0xCC, colors[ ((i+offset) % (len(colors)*numEach))/numEach ])
 
            self.displayAllFrames()
 
@@ -134,13 +134,70 @@ class Christmas:
            while (time.time()-tStart) < self.period:
                time.sleep(0.0001)
 
+   def fadeColors(self, colors=[], numEach=1):
+       maxIndex = self.totalBulbCount()
+       direction = 1
+       intensity = 0
+       while True:
+           tStart = time.time()
+           for i in range(0, self.totalBulbCount()):
+               (frame, frameIndex) = self.indexToFrame(i)
+               frame.setBulb(frameIndex, intensity, colors[ ((i) % len(colors*numEach))/numEach ])
+
+           self.displayAllFrames()
+
+           intensity=intensity+direction
+           if (intensity>=0x40):
+               direction=-1
+           elif (intensity<=0):
+               direction=1
+
+           while (time.time()-tStart) < self.period:
+               time.sleep(0.0001)
+
+   def allColorCycle(self, colors=[]):
+       maxIndex = self.totalBulbCount()
+       offset = 0
+       while True:
+           tStart = time.time()
+           for i in range(0, self.totalBulbCount()):
+               (frame, frameIndex) = self.indexToFrame(i)
+               frame.setBulb(frameIndex, 0xCC, colors[offset % len(colors)])
+
+           self.displayAllFrames()
+
+           offset = offset+1
+
+           while (time.time()-tStart) < self.period:
+               time.sleep(0.0001)
+
+   def solidColor(self, colors=[]):
+       maxIndex = self.totalBulbCount()
+       while True:
+           tStart = time.time()
+           offset = 0
+           for i in range(0, self.totalBulbCount()):
+               (frame, frameIndex) = self.indexToFrame(i)
+               frame.setBulb(frameIndex, 0xCC, colors[offset % len(colors)])
+               offset = offset + 1
+
+           self.displayAllFrames()
+
+           while (time.time()-tStart) < self.period:
+               time.sleep(0.0001)
+
+
 
 class MyChristmas(Christmas):
    def setup(self):
        self.frames.append(Frame(0, 50))
+       self.frames.append(Frame(1, 25))
 
 c = MyChristmas()
+#c.solidColor([COLOR_WHITE])
 c.runRainbowSequence([COLOR_WHITE, COLOR_BLUE],numEach=3)
+#c.fadeColors([COLOR_RED,COLOR_GREEN,COLOR_BLUE], numEach=1)
+#c.allColorCycle([COLOR_RED,COLOR_GREEN,COLOR_BLUE,COLOR_WHITE,COLOR_MAGENTA,COLOR_YELLOW])
 
 
 
