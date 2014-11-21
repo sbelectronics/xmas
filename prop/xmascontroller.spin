@@ -40,7 +40,7 @@ VAR
 
 PUB main | b, channel, bright                                             
   rxserial.start(PIN_RXSERIAL, 460800)
-  pst.start(115200)
+  'pst.start(115200)
 
   xmas0.start(PIN_LIGHTS0)
   xmas1.start(PIN_LIGHTS1)
@@ -54,9 +54,9 @@ PUB main | b, channel, bright
       'pst.Hex(b,8)
       'pst.NewLine
 
-      if (b==$FFFFFFFF)
-          dumpStats
-          next
+      'if (b==$FFFFFFFF)
+      '    dumpStats
+      '    next
 
       ' <channel:1><addr:2><bright:2><b><g><r>
         
