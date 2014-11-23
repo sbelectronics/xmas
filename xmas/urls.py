@@ -6,5 +6,6 @@ urlpatterns = patterns('',
     # url(r'^$', 'xmas.views.home', name='home'),
     # url(r'^blog/', include('blog.urls')),
 
+    url(r'^xmas/', include('xmasui.urls')),
     url(r'^admin/', include(admin.site.urls)),
 )
