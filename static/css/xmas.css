@@ -12,8 +12,11 @@
     width: 270px;
 }
 
-.btn-red {
-    @include buttonBackground(red, white);
+.icon-single-color {
+    display: none;
 }
 
+.icon-custom-color {
+    display: none;
+}
 

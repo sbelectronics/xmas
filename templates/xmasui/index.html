@@ -4,9 +4,10 @@
   <script src="{% static 'js/vendor/jquery-1.9.1.js' %}"></script>
   <script src="{% static 'js/vendor/jquery-ui.js' %}"></script>
   <script src="{% static 'js/xmasui.js' %}"></script>
-  <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/bootstrap-3.2.0.min.css' %}">
   <link rel="stylesheet" href="{% static 'css/jquery-ui.css' %}">
   <link rel="stylesheet" href="{% static 'css/xmas.css' %}">
+  <link rel="stylesheet" href="{% static 'css/color-buttons.css' %}">
 </head>
 <body>
 
@@ -19,10 +20,10 @@
 
 <div id="single-colors">
 <h3>Single colors</h3>
-<button class ="btn btn-red btn-single-color" id="single-red">red</button>
-<button class ="btn btn-green btn-single-color" id="single-green">green</button>
-<button class ="btn btn-blue btn-single-color" id="single-blue">blue</button>
-<button class ="btn btn-white btn-single-color" id="single-white"?>white</button>
+<button class ="btn btn-red btn-single-color" id="single-red"><span id="icon-single-red" class="icon-single-color glyphicon glyphicon-ok" aria-hidden="true"></span> red</button>
+<button class ="btn btn-green btn-single-color" id="single-green"><span id="icon-single-green" class="icon-single-color glyphicon glyphicon-ok" aria-hidden="true"></span> green</button>
+<button class ="btn btn-blue btn-single-color" id="single-blue"><span id="icon-single-blue" class="icon-single-color glyphicon glyphicon-ok" aria-hidden="true"></span> blue</button>
+<button class ="btn btn-white btn-single-color" id="single-white"><span id="icon-single-white" class="icon--singlecolor glyphicon glyphicon-ok" aria-hidden="true"></span> white</button>
 <div>
 
 <div id="custom-program">
@@ -34,10 +35,10 @@
     <option value="cycle">cycle</option>
 </select>
 <div id="custom-buttons-div">
-<button class="btn custom-color-button btn-red" id="custom-red">red</button>
-<button class="btn custom-color-button btn-green" id="custom-green">green</button>
-<button class="btn custom-color-button btn-blue" id="custom-blue">blue</button>
-<button class="btn custom-color-button btn-white" id="custom-white">white</button>
+<button class="btn custom-color-button btn-red" id="custom-red"><span id="icon-custom-red" class="icon-custom-color glyphicon glyphicon-ok" aria-hidden="true"></span> red</button>
+<button class="btn custom-color-button btn-green" id="custom-green"><span id="icon-custom-green" class="icon-custom-color glyphicon glyphicon-ok" aria-hidden="true"></span> green</button>
+<button class="btn custom-color-button btn-blue" id="custom-blue"><span id="icon-custom-blue" class="icon-custom-color glyphicon glyphicon-ok" aria-hidden="true"></span> blue</button>
+<button class="btn custom-color-button btn-white" id="custom-white"><span id="icon-custom-white" class="icon-custom-color glyphicon glyphicon-ok" aria-hidden="true"></span> white</button>
 </div><br>
 <div id="custom-count-div">
 <select id="custom-count">

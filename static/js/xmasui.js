@@ -4,18 +4,24 @@ function xmas() {
     onSingleColor = function(color) {
          console.log("singlecolor " + color);
          var button_selector = "#single-" + color;
-         $(".btn-single-color").removeClass("active")
+         var icon_selector = "#icon-single-" + color;
+         $(".btn-single-color").removeClass("active");
+         $(".icon-single-color").hide();
          $(button_selector).addClass("active")
+         $(icon_selector).show();
          xmas.sendProgram("single")
     }
 
     onCustomColor = function(color) {
          console.log("customcolor " + color);
          var button_selector = "#custom-" + color;
+         var icon_selector = "#icon-custom-" + color;
          if ($(button_selector).hasClass("active")) {
              $(button_selector).removeClass("active");
+             $(icon_selector).hide();
          } else {
              $(button_selector).addClass("active");
+             $(icon_selector).show();
          }
          xmas.sendProgram("custom");
     }
