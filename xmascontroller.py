@@ -5,7 +5,6 @@
     Sends 100,000 test patterns from the Pi to the Propeller at maximum speed
 """
 
-import serial
 import sys
 import time
 import threading
@@ -25,12 +24,12 @@ COLOR_MAGENTA       = COLOR_RED|COLOR_BLUE
 COLOR_YELLOW        = COLOR_RED|COLOR_GREEN
 
 class Frame:
-
-    def __init__(self, channel, numBulbs):
+    def __init__(self, channel, numBulbs, reverse=False):
         self.commands = [0] * MAX_BULBS
         self.lastCommands = [0] * MAX_BULBS
         self.numBulbs = numBulbs
         self.channel = channel
+        self.reverse = reverse
         self.fill(0xCC, COLOR_BLACK)
 
     def fill(self, intensity, color):
@@ -141,11 +140,15 @@ class SolidColorAnimation(Animation):
 
             self.done = True
 
-class Christmas(threading.Thread):
-   def __init__(self):
-       super(Christmas, self).__init__()
+class BaseChristmas(threading.Thread):
+   def __init__(self, noSerial=False):
+       super(BaseChristmas, self).__init__()
        self.daemon = True
-       self.ser = serial.Serial('/dev/ttyAMA0', 460800)
+       if (noSerial):
+           self.ser = None
+       else:
+           import serial
+           self.ser = serial.Serial('/dev/ttyAMA0', 460800)
        self.frames = []
        self.setFPS(5)
        self.setup()
@@ -175,15 +178,19 @@ class Christmas(threading.Thread):
    def enumeration(self, frame):
        for i in range(0, frame.numBulbs):
            self.setBulb(frame.channel, i, 0xCC, COLOR_BLACK)
-           time.sleep(0.01)
+           if self.ser:
+               # pause if we're actually sending out the commands
+               time.sleep(0.01)
 
    def setBulb(self, channel, bulb, intensity, color):
-       self.ser.write("%X%02X%02X%03X\r" % (channel, bulb, intensity, color))
+       if self.ser:
+           self.ser.write("%X%02X%02X%03X\r" % (channel, bulb, intensity, color))
 
    def displayFrame(self, frame):
        for i in range(frame.numBulbs):
            if frame.commands[i] != frame.lastCommands[i]:
-               self.ser.write("%08X\r" % frame.commands[i]);
+               if self.ser:
+                   self.ser.write("%08X\r" % frame.commands[i]);
                #print "%08X\r" % frame.commands[i]
                frame.lastCommands[i] = frame.commands[i]
 
@@ -207,7 +214,10 @@ class Christmas(threading.Thread):
 
        for frame in self.frames:
            if (i<frame.numBulbs):
-               return (frame, i)
+               if frame.reverse:
+                   return (frame, frame.numBulbs-i-1)
+               else:
+                   return (frame, i)
            else:
                i=i-frame.numBulbs
 
@@ -224,10 +234,12 @@ class Christmas(threading.Thread):
            while (time.time()-tStart) < self.period:
                time.sleep(0.0001)
 
-class MyChristmas(Christmas):
+class MyChristmas(BaseChristmas):
    def setup(self):
-       self.frames.append(Frame(0, 50))
-       self.frames.append(Frame(1, 25))
+       self.frames.append(Frame(2, 32))                # rv park
+       self.frames.append(Frame(0, 50))                # garage
+       self.frames.append(Frame(1, 49, reverse=True))  # front door
+       self.frames.append(Frame(3, 25))                # desk top
 
 def getch():
     fd = sys.stdin.fileno()
@@ -239,8 +251,14 @@ def getch():
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
     return ch
 
+Christmas = None
+def startup(noSerial=False):
+    global Christmas
+    Christmas = MyChristmas(noSerial)
+
 def main():
-    c = MyChristmas()
+    startup()
+    c = Christmas
 
     print "q ... quit"
     print "+ ... increase fps"
@@ -251,8 +269,9 @@ def main():
     print "w ... solid white"
     print "1 ... blue white sequence"
     print "2 ... yellow green sequence"
-    print "3 ... fade"
-    print "4 ... all color cycle"
+    print "3 ... red white sequence"
+    print "4 ... fade"
+    print "5 ... all color cycle"
 
     while True:
         ch = getch()
@@ -271,8 +290,10 @@ def main():
         elif (ch=='2'):
             c.setAnimation(RainbowSequenceAnimation(c,[COLOR_YELLOW, COLOR_GREEN], numEach=3))
         elif (ch=='3'):
-            c.setAnimation(FadeColorAnimation(c,[COLOR_RED, COLOR_GREEN, COLOR_BLUE], numEach=1))
+            c.setAnimation(RainbowSequenceAnimation(c,[COLOR_RED, COLOR_WHITE], numEach=3))
         elif (ch=='4'):
+            c.setAnimation(FadeColorAnimation(c,[COLOR_RED, COLOR_GREEN, COLOR_BLUE], numEach=1))
+        elif (ch=='5'):
             c.setAnimation(AllColorCycleAnimation(c,[COLOR_RED,COLOR_GREEN,COLOR_BLUE,COLOR_WHITE,COLOR_MAGENTA,COLOR_YELLOW]))
         elif (ch=='+'):
             c.setFPS(c.FPS+1)
@@ -280,17 +301,6 @@ def main():
             c.setFPS(c.FPS-1)
 
         time.sleep(0.01)
-
-
-
-
-
-
-
-    #c.solidColor([COLOR_WHITE])
-    #c.runRainbowSequence([COLOR_WHITE, COLOR_BLUE],numEach=3)
-    #c.fadeColors([COLOR_RED,COLOR_GREEN,COLOR_BLUE], numEach=1)
-    #c.allColorCycle([COLOR_RED,COLOR_GREEN,COLOR_BLUE,COLOR_WHITE,COLOR_MAGENTA,COLOR_YELLOW])
 
 if __name__ == "__main__":
     main()

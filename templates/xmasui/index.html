@@ -6,8 +6,16 @@
   <script src="{% static 'js/xmasui.js' %}"></script>
   <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
   <link rel="stylesheet" href="{% static 'css/jquery-ui.css' %}">
+  <link rel="stylesheet" href="{% static 'css/xmas.css' %}">
 </head>
 <body>
+
+<div id="common-controls">
+<h3>FPS</h3>
+<div>
+<div id="slider-fps"></div><div id="slider-fps-value"></div>
+</div>
+</div>
 
 <div id="single-colors">
 <h3>Single colors</h3>
@@ -34,8 +42,8 @@
 <div id="custom-count-div">
 <select id="custom-count">
     <option value="1">1 each</option>
-    <option id="2">2 each</option>
-    <option id="3">3 each</option>
+    <option value="2">2 each</option>
+    <option value="3">3 each</option>
 </select>
 </div>
 </div>

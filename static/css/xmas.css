@@ -1,2 +1,19 @@
-foo
-ar
+#slider-fps {
+    width: 250px;
+    float: left;
+}
+
+#slider-fps-value {
+    float: right;
+}
+
+#common-controls {
+    overflow: hidden;
+    width: 270px;
+}
+
+.btn-red {
+    @include buttonBackground(red, white);
+}
+
+
