@@ -1,4 +1,4 @@
-COLORS = ["red", "green", "blue", "white", "magenta", "yellow"];
+COLORS = ["red", "green", "blue", "white", "magenta", "yellow", "cyan"];
 
 function xmas() {
     onSingleColor = function(color) {
