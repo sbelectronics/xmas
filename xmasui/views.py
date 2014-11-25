@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.template import RequestContext, loader
-from xmascontroller import Christmas, COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_WHITE, \
+from xmascontroller import Christmas, COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_WHITE, COLOR_YELLOW, COLOR_MAGENTA, \
                            SolidColorAnimation, RainbowSequenceAnimation, FadeColorAnimation, AllColorCycleAnimation
 import xmascontroller
 
@@ -30,6 +30,10 @@ def setProgram(request):
             colors.append(COLOR_BLUE)
         elif (color=="white"):
             colors.append(COLOR_WHITE)
+        elif (color=="magenta"):
+            colors.append(COLOR_MAGENTA)
+        elif (color=="yellow"):
+            colors.append(COLOR_YELLOW)
         else:
             print "XXX unknown color", color
 
