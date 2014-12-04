@@ -1,3 +1,5 @@
 sudo apt-get install python-pip
 sudo apt-get install sqlite3
+sudo apt-get install python-dev
 sudo pip install Django==1.7
+sudo pip install pyephem

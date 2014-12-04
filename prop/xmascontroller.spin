@@ -46,8 +46,8 @@ PUB main | b, channel, bright
   xmas1.start(PIN_LIGHTS1)
   xmas2.start(PIN_LIGHTS2)
   xmas3.start(PIN_LIGHTS3)
-  xmas4.start(PIN_LIGHTS3)
-  'xmas5.start(PIN_LIGHTS3)    ' we can't enable xmas5 unless we turn off the serial terminal
+  xmas4.start(PIN_LIGHTS4)
+  'xmas5.start(PIN_LIGHTS5)    ' we can't enable xmas5 unless we turn off the serial terminal
 
   repeat
       b := rxserial.rx
