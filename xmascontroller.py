@@ -5,13 +5,28 @@
     Sends 100,000 test patterns from the Pi to the Propeller at maximum speed
 """
 
+"""
+import ephem
+o=ephem.Observer()
+o.lat="44"
+o.long="-123"
+s=ephem.Sun()
+s.compute(o)
+twilight = 0 #-12 * ephem.degree
+print "is_day", s.alt > twilight, "alt", s.alt
+"""
+
 import sys
 import time
 import threading
 import tty
 import termios
+import ephem
+import traceback
 
 MAX_BULBS = 100
+
+PIN_POWER = 18
 
 COLOR_MASK          = 0xFFF
 COLOR_BLACK         = 0x000
@@ -22,6 +37,17 @@ COLOR_RED           = 0x00F
 COLOR_CYAN          = COLOR_GREEN|COLOR_BLUE
 COLOR_MAGENTA       = COLOR_RED|COLOR_BLUE
 COLOR_YELLOW        = COLOR_RED|COLOR_GREEN
+COLOR_ORANGE        = 0x04F
+
+COLOR_NAME_MAP =  {COLOR_BLACK: "black",
+                   COLOR_WHITE: "white",
+                   COLOR_BLUE: "blue",
+                   COLOR_GREEN: "green",
+                   COLOR_RED: "red",
+                   COLOR_CYAN: "cyan",
+                   COLOR_MAGENTA: "magenta",
+                   COLOR_YELLOW: "yellow",
+                   COLOR_ORANGE: "orange"}
 
 class Frame:
     def __init__(self, channel, numBulbs, reverse=False):
@@ -39,13 +65,22 @@ class Frame:
     def setBulb(self, bulb, intensity, color):
         self.commands[bulb] = (self.channel<<28) | (bulb<<20) | (intensity<<12) | color
 
+
 class Animation(object):
    def __init__(self, frameset):
        self.frameset = frameset
        self.maxIndex = self.frameset.totalBulbCount()
+       self.colors = [COLOR_BLUE]
+       self.program_name = "base"
 
    def update(self):
        pass
+
+   def getColorNames(self):
+        colorNames = []
+        for color in self.colors:
+            colorNames.append(COLOR_NAME_MAP.get(color, "unknown"))
+        return colorNames
 
 class SimpleSequenceAnimation(Animation):
    def __init__(self, frameset):
@@ -54,13 +89,13 @@ class SimpleSequenceAnimation(Animation):
        self.lastFrame = None
        self.lastFrameIndex = 0
        self.index=0
-       self.color = COLOR_MAGENTA
+       self.program_name="simpleSequence"
 
    def update(self):
        if (self.index >= self.maxIndex):
            self.index = 0
        (frame, frameIndex) = self.frameset.indexToFrame(index)
-       frame.setBulb(frameIndex, 0xCC, COLOR_MAGENTA)
+       frame.setBulb(frameIndex, 0xCC, self.colors[0])
        if (self.lastFrame):
            self.lastFrame.setBulb(self.lastFrameIndex, 0xCC, COLOR_BLACK)
        self.lastFrame=self.frame
@@ -76,6 +111,7 @@ class RainbowSequenceAnimation(Animation):
         self.colors = colors
         self.numEach = numEach
         self.offset = 0
+        self.program_name = "sequence"
 
     def update(self):
         for i in range(0, self.frameset.totalBulbCount()):
@@ -93,6 +129,7 @@ class FadeColorAnimation(Animation):
        self.intensity = 0
        self.colors = colors
        self.numEach = numEach
+       self.program_name = "fade"
 
    def update(self):
        for i in range(0, self.maxIndex):
@@ -112,6 +149,7 @@ class AllColorCycleAnimation(Animation):
         super(AllColorCycleAnimation, self).__init__(frameset)
         self.offset = 0
         self.colors = colors
+        self.program_name = "cycle"
 
     def update(self):
         for i in range(0, self.maxIndex):
@@ -127,6 +165,7 @@ class SolidColorAnimation(Animation):
         super(SolidColorAnimation, self).__init__(frameset)
         self.done = False
         self.colors = colors
+        self.program_name = "single"
 
     def update(self):
         if (not self.done):
@@ -144,15 +183,24 @@ class BaseChristmas(threading.Thread):
    def __init__(self, noSerial=False):
        super(BaseChristmas, self).__init__()
        self.daemon = True
+       self.timer_state = "startup"
        if (noSerial):
            self.ser = None
+           self.gpio = None
        else:
            import serial
            self.ser = serial.Serial('/dev/ttyAMA0', 460800)
+
+           import RPi.GPIO as GPIO
+           GPIO.setmode(GPIO.BCM)
+           GPIO.setup(PIN_POWER, GPIO.OUT)
+           self.gpio = GPIO
+
        self.frames = []
+       self.power = "unknown"
+       self.nextPower = False
        self.setFPS(5)
        self.setup()
-       self.enumerateAllFrames()
        self.nextAnimation = RainbowSequenceAnimation(self, [COLOR_WHITE, COLOR_BLUE], numEach=3)
        self.animation = None
        self.start()
@@ -225,21 +273,62 @@ class BaseChristmas(threading.Thread):
        while True:
            tStart = time.time()
 
-           if (self.nextAnimation) :
-               self.animation = self.nextAnimation
-               self.nextAnimation = None
+           if (self.nextPower != self.power):
+               self.power = self.nextPower
+               if (self.gpio):
+                    if self.power:
+                        print "powering on"
+                        self.gpio.output(PIN_POWER, 1)
+                    else:
+                        print "powering off"
+                        self.gpio.output(PIN_POWER, 0)
+               time.sleep(0.25)
+               self.enumerateAllFrames()
 
-           self.animation.update()
+           if (self.power):
+               if (self.nextAnimation) :
+                   self.animation = self.nextAnimation
+                   self.nextAnimation = None
+
+               self.animation.update()
+
+           self.check_schedule()
 
            while (time.time()-tStart) < self.period:
                time.sleep(0.0001)
 
+   def setPower(self, value):
+       self.nextPower = value
+
+   def is_daylight(self):
+        o=ephem.Observer()
+        o.lat="44"
+        o.long="-123"
+        s=ephem.Sun()
+        s.compute(o)
+        twilight = 0 # -12 * ephem.degree
+        return s.alt > twilight
+
+   def check_schedule(self):
+       if self.is_daylight():
+           if (self.timer_state!="turned_off"):
+               self.timer_state="turned_off"
+               self.setPower(False)
+               print "timer turn off"
+       else:
+           if (self.timer_state!="turned_on"):
+               self.timer_state="turned_on"
+               self.setPower(True)
+               print "timer turn on"
+
 class MyChristmas(BaseChristmas):
    def setup(self):
        self.frames.append(Frame(2, 32))                # rv park
-       self.frames.append(Frame(0, 50))                # garage
-       self.frames.append(Frame(1, 49, reverse=True))  # front door
-       self.frames.append(Frame(3, 25))                # desk top
+       self.frames.append(Frame(0, 50))                # garage roof
+       self.frames.append(Frame(1, 60, reverse=True))  # front door
+       self.frames.append(Frame(3, 36))                # garage door
+       self.frames.append(Frame(4, 13))                # desk top
+       self.frames.append(Frame(5, 13))                # junk
 
 def getch():
     fd = sys.stdin.fileno()

@@ -1,4 +1,4 @@
-COLORS = ["red", "green", "blue", "white", "magenta", "yellow", "cyan"];
+COLORS = ["red", "green", "blue", "white", "magenta", "yellow", "cyan",  "black", "orange"];
 
 function xmas() {
     onSingleColor = function(color) {
@@ -23,14 +23,44 @@ function xmas() {
              $(button_selector).addClass("active");
              $(icon_selector).show();
          }
-         xmas.sendProgram("custom");
+         if (xmas.postUI) {
+             xmas.sendProgram("custom");
+         }
     }
 
     onFPSChange = function() {
         console.log("FPSChange");
         fps = $("#slider-fps").slider("value");
         $("#slider-fps-value").text(fps);
-        xmas.sendFPS(fps);
+        if (xmas.postUI) {
+            xmas.sendFPS(fps);
+        }
+    }
+
+    onPowerOn = function() {
+        var button_selector = "#power-on";
+        var icon_selector = "#icon-power-on";
+        console.log("PowerOn");
+        $(".btn-power").removeClass("active");
+        $(".icon-power").hide();
+        $(button_selector).addClass("active");
+        $(icon_selector).show();
+        if (xmas.postUI) {
+            xmas.setPower(true);
+        }
+    }
+
+    onPowerOff = function() {
+        var button_selector = "#power-off";
+        var icon_selector = "#icon-power-off";
+        console.log("PowerOff");
+        $(".btn-power").removeClass("active");
+        $(".icon-power").hide();
+        $(button_selector).addClass("active");
+        $(icon_selector).show();
+        if (xmas.postUI) {
+            xmas.setPower(false);
+        }
     }
 
     getSelectedColors = function(which) {
@@ -68,6 +98,10 @@ function xmas() {
         $.ajax({url: "/xmas/setFPS?fps=" + fps});
     }
 
+    setPower = function(value) {
+        $.ajax({url: "/xmas/setPower?value=" + value});
+    }
+
     initButtons = function() {
         initSingleColorButton = function(color) {
             var button_id = "#single-" + color;
@@ -89,10 +123,61 @@ function xmas() {
         $("#custom-count").change(function() { xmas.sendProgram("custom"); });
         $("#custom-function").change(function() { xmas.sendProgram("custom"); });
 
+        $("#power-on").click(function() { xmas.onPowerOn(); });
+        $("#power-off").click(function() { xmas.onPowerOff(); });
+
+    }
+
+    parseSettings = function(settings) {
+        console.log(settings);
+        this.postUI = false;
+        try {
+            $("#slider-fps").slider({value: settings["fps"]});
+            if (settings["power"]) {
+                $("#icon-power-on").click();
+            } else {
+                $("#icon-power-off").click();
+            }
+
+            $(".btn-single-color").removeClass("active");
+            $(".custom-color-button").removeClass("active");
+
+            for (index in settings["colors"]) {
+                color = settings["colors"][index];
+                if (settings["program"] == "single") {
+                    onSingleColor(color);
+                } else {
+                    onCustomColor(color);
+                }
+            }
+
+            if (settings["program"] != "single") {
+                $("#custom-function").val(settings["program"]);
+            }
+        }
+        finally {
+            this.postUI = true;
+        }
+    }
+
+    requestSettings = function() {
+        $.ajax({
+            url: "/xmas/getSettings",
+            dataType : 'json',
+            type : 'GET',
+            success: function(newData) {
+                xmas.parseSettings(newData);
+            },
+            error: function() {
+                console.log("error retrieving settings");
+            }
+        });
     }
 
     start = function() {
+         this.postUI = true;
          this.initButtons();
+         this.requestSettings();
     }
 
     return this;
