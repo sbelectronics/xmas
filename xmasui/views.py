@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.template import RequestContext, loader
 from xmascontroller import Christmas, COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_WHITE, COLOR_YELLOW, COLOR_MAGENTA, COLOR_ORANGE, COLOR_BLACK, COLOR_CYAN, \
-                           SolidColorAnimation, RainbowSequenceAnimation, FadeColorAnimation, AllColorCycleAnimation
+                           SolidColorAnimation, RainbowSequenceAnimation, FadeColorAnimation, AllColorCycleAnimation, ColorMorphAnimation
 import xmascontroller
 import json
 
@@ -22,6 +22,16 @@ def setFPS(request):
 
 def setPower(request):
     Christmas.setPower(request.GET.get("value","true")=="true")
+
+    return HttpResponse("okey dokey")
+
+def setPreprogrammed(request):
+    value = request.GET.get("value",0)
+    try:
+        value = int(value)
+    except:
+        value = -1
+    Christmas.setPreprogrammed(value)
 
     return HttpResponse("okey dokey")
 
@@ -63,6 +73,8 @@ def setProgram(request):
         Christmas.setAnimation(FadeColorAnimation(Christmas, colors, numEach=count))
     elif (program == "cycle"):
         Christmas.setAnimation(AllColorCycleAnimation(Christmas, colors))
+    elif (program == "morph"):
+        Christmas.setAnimation(ColorMorphAnimation(Christmas, colors))
 
     return HttpResponse("okey dokey")
 
@@ -72,6 +84,7 @@ def getSettings(request):
     if (animation):
         result["program"] = animation.program_name
         result["colors"] = animation.getColorNames()
+        result["numEach"] = animation.numEach
     result["fps"] = Christmas.FPS
     result["power"] = Christmas.power
 

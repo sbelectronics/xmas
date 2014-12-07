@@ -23,6 +23,7 @@ import tty
 import termios
 import ephem
 import traceback
+import random
 
 MAX_BULBS = 100
 
@@ -72,6 +73,7 @@ class Animation(object):
        self.maxIndex = self.frameset.totalBulbCount()
        self.colors = [COLOR_BLUE]
        self.program_name = "base"
+       self.numEach = 0
 
    def update(self):
        pass
@@ -160,6 +162,55 @@ class AllColorCycleAnimation(Animation):
 
         self.offset = self.offset+1
 
+class ColorMorphAnimation(Animation):
+    def __init__(self, frameset, colors=[], dwell=3):
+        super(ColorMorphAnimation, self).__init__(frameset)
+        self.offset = 0
+        self.program_name = "morph"
+        self.colors = colors
+
+        self.morphedColors = []
+        for i in range(0,len(colors)):
+            lastColor = colors[i]
+            nextColor = colors[(i+1) % len(colors)]
+
+            for i in range(0,8):
+                color = self.combine_colors(lastColor, nextColor, i)
+                self.morphedColors.append(color)
+
+                #print "%03x" % color
+
+            for i in range(0,dwell):
+                self.morphedColors.append(nextColor)
+
+                #print "%03x" % nextColor
+
+    def combine_colors(self, a, b, i):
+        ra = a & 0xF
+        ga = (a>>4) & 0xF
+        ba = (a>>8) & 0xF
+        rb = b & 0xF
+        gb = (b>>4) & 0xF
+        bb = (b>>8) & 0xF
+        j = 8-i
+
+        rc = min(((ra*j) + (rb*i)) / 8, 0xF)
+        gc = min(((ga*j) + (gb*i)) / 8, 0xF)
+        bc = min(((ba*j) + (bb*i)) / 8, 0xF)
+
+        c = (bc<<8) + (gc<<4) + (rc);
+
+        return c
+
+    def update(self):
+        for i in range(0, self.maxIndex):
+            (frame, frameIndex) = self.frameset.indexToFrame(i)
+            frame.setBulb(frameIndex, 0xCC, self.morphedColors[self.offset % len(self.morphedColors)])
+
+        self.frameset.displayAllFrames()
+
+        self.offset = self.offset+1
+
 class SolidColorAnimation(Animation):
     def __init__(self, frameset, colors=[]):
         super(SolidColorAnimation, self).__init__(frameset)
@@ -196,6 +247,7 @@ class BaseChristmas(threading.Thread):
            GPIO.setup(PIN_POWER, GPIO.OUT)
            self.gpio = GPIO
 
+       self.lastAnimationChange = time.time()
        self.frames = []
        self.power = "unknown"
        self.nextPower = False
@@ -207,6 +259,7 @@ class BaseChristmas(threading.Thread):
 
    def setAnimation(self, anim):
        self.nextAnimation = anim
+       self.lastAnimationChange = time.time()
 
    def setFPS(self, fps):
        if (fps<1):
@@ -242,9 +295,26 @@ class BaseChristmas(threading.Thread):
                #print "%08X\r" % frame.commands[i]
                frame.lastCommands[i] = frame.commands[i]
 
-   def displayAllFrames(self):
+   def displayAllFramesOld(self):
        for frame in self.frames:
            self.displayFrame(frame);
+
+   # Interleaving the frames is important, as it takes tiem for each command
+   # to be sent out to the LED set.
+
+   def displayAllFrames(self):
+       maxBulbs = 0
+       for frame in self.frames:
+           maxBulbs = max(maxBulbs, frame.numBulbs)
+       for i in range(0, maxBulbs):
+           for frame in self.frames:
+               if (i<frame.numBulbs):
+                   if frame.commands[i] != frame.lastCommands[i]:
+                       if self.ser:
+                           self.ser.write("%08X\r" % frame.commands[i]);
+                       #print "%08X\r" % frame.commands[i]
+                       frame.lastCommands[i] = frame.commands[i]
+
 
    def totalBulbCount(self):
        total=0
@@ -269,6 +339,40 @@ class BaseChristmas(threading.Thread):
            else:
                i=i-frame.numBulbs
 
+   def setPreprogrammed(self, which=None):
+       if (which==None) or (which < 0):
+           which=random.randrange(0,8)
+
+       if (which == 0):
+            newProgram = RainbowSequenceAnimation(self, [COLOR_MAGENTA, COLOR_BLUE], numEach=3)
+            fps = 5
+       elif (which == 1):
+            newProgram = RainbowSequenceAnimation(self, [COLOR_WHITE, COLOR_BLUE], numEach=3)
+            fps = 5
+       elif (which == 2):
+            newProgram = RainbowSequenceAnimation(self, [COLOR_YELLOW, COLOR_GREEN], numEach=3)
+            fps = 5
+       elif (which == 3):
+            newProgram = RainbowSequenceAnimation(self, [COLOR_RED, COLOR_WHITE], numEach=3)
+            fps = 5
+       elif (which == 4):
+            newProgram = FadeColorAnimation(self, [COLOR_RED, COLOR_GREEN, COLOR_BLUE], numEach=1)
+            fps = 20
+       elif (which == 5):
+            newProgram = AllColorCycleAnimation(self, [COLOR_RED,COLOR_GREEN,COLOR_BLUE,COLOR_WHITE,COLOR_MAGENTA,COLOR_YELLOW])
+            fps = 1
+       elif (which == 6):
+            newProgram = RainbowSequenceAnimation(self, [COLOR_RED, COLOR_GREEN, COLOR_YELLOW, COLOR_BLUE], numEach=8)
+            fps = 20
+       elif (which == 7):
+            newProgram = ColorMorphAnimation(self, [COLOR_RED,COLOR_GREEN,COLOR_BLUE])
+            fps = 5
+       else:
+            print "XXX unknown value for 'which'", which
+
+       self.setAnimation(newProgram)
+       self.setFPS(fps)
+
    def run(self):
        while True:
            tStart = time.time()
@@ -282,17 +386,20 @@ class BaseChristmas(threading.Thread):
                     else:
                         print "powering off"
                         self.gpio.output(PIN_POWER, 0)
-               time.sleep(0.25)
+               time.sleep(0.50)
                self.enumerateAllFrames()
 
            if (self.power):
                if (self.nextAnimation) :
                    self.animation = self.nextAnimation
                    self.nextAnimation = None
+                   print "set animation to", self.animation.program_name, ",".join(self.animation.getColorNames())
 
                self.animation.update()
 
            self.check_schedule()
+
+           self.check_autochange()
 
            while (time.time()-tStart) < self.period:
                time.sleep(0.0001)
@@ -321,6 +428,10 @@ class BaseChristmas(threading.Thread):
                self.setPower(True)
                print "timer turn on"
 
+   def check_autochange(self):
+       if (time.time() - self.lastAnimationChange) > 300:
+           self.setPreprogrammed()
+
 class MyChristmas(BaseChristmas):
    def setup(self):
        self.frames.append(Frame(2, 32))                # rv park
@@ -343,6 +454,7 @@ def getch():
 Christmas = None
 def startup(noSerial=False):
     global Christmas
+    print "XXX Chrstimas Controller Started"
     Christmas = MyChristmas(noSerial)
 
 def main():

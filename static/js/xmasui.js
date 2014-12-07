@@ -63,6 +63,13 @@ function xmas() {
         }
     }
 
+    onRandom = function() {
+        if (xmas.postUI) {
+            xmas.setPreprogrammed(-1);
+        }
+        setTimeout(xmas.requestSettings, 1000);
+    }
+
     getSelectedColors = function(which) {
         colors = [];
         for (index in COLORS) {
@@ -102,6 +109,10 @@ function xmas() {
         $.ajax({url: "/xmas/setPower?value=" + value});
     }
 
+    setPreprogrammed = function(value) {
+        $.ajax({url: "/xmas/setPreprogrammed?value=" + value});
+    }
+
     initButtons = function() {
         initSingleColorButton = function(color) {
             var button_id = "#single-" + color;
@@ -126,6 +137,8 @@ function xmas() {
         $("#power-on").click(function() { xmas.onPowerOn(); });
         $("#power-off").click(function() { xmas.onPowerOff(); });
 
+        $("#random").click(function() { xmas.onRandom(); });
+
     }
 
     parseSettings = function(settings) {
@@ -141,6 +154,7 @@ function xmas() {
 
             $(".btn-single-color").removeClass("active");
             $(".custom-color-button").removeClass("active");
+            $(".icon-custom-color").hide();
 
             for (index in settings["colors"]) {
                 color = settings["colors"][index];
@@ -154,6 +168,8 @@ function xmas() {
             if (settings["program"] != "single") {
                 $("#custom-function").val(settings["program"]);
             }
+
+            $("#custom-count").val(settings["numEach"]);
         }
         finally {
             this.postUI = true;
