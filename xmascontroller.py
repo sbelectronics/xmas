@@ -74,6 +74,8 @@ class Animation(object):
        self.colors = [COLOR_BLUE]
        self.program_name = "base"
        self.numEach = 0
+       self.maxFPS = 20
+       self.multFPS = 1   # multFPS is a cheap way to make the FPS go faster, without modifying the UI slider to go past 20
 
    def update(self):
        pass
@@ -230,6 +232,34 @@ class SolidColorAnimation(Animation):
 
             self.done = True
 
+class RandomFillAnimation(Animation):
+    def __init__(self, frameset, colors=[]):
+        super(RandomFillAnimation, self).__init__(frameset)
+        self.offset = 0
+        self.colors = colors
+        self.program_name = "randomfill"
+        self.multFPS = 4
+        self.todo = []
+
+    def nextColor(self):
+        color = self.colors[self.offset % len(self.colors)]
+        for i in range(0, self.maxIndex):
+            (frame, frameIndex) = self.frameset.indexToFrame(i)
+            self.todo.append( (frame, frameIndex, color) )
+
+        random.shuffle(self.todo)
+
+        self.offset = self.offset + 1
+
+    def update(self):
+        if self.todo == []:
+            self.nextColor()
+
+        (frame, frameIndex, color) = self.todo.pop()
+        frame.setBulb(frameIndex, 0xCC, color)
+
+        self.frameset.displayAllFrames()
+
 class BaseChristmas(threading.Thread):
    def __init__(self, noSerial=False):
        super(BaseChristmas, self).__init__()
@@ -264,10 +294,7 @@ class BaseChristmas(threading.Thread):
    def setFPS(self, fps):
        if (fps<1):
            fps = 1
-       if (fps>20):
-           fps = 20
        self.FPS = fps;
-       self.period = 1.0/fps
 
    def setup(self):
        raise TypeError, "you must fill in the setup method"
@@ -341,7 +368,7 @@ class BaseChristmas(threading.Thread):
 
    def setPreprogrammed(self, which=None):
        if (which==None) or (which < 0):
-           which=random.randrange(0,8)
+           which=random.randrange(0,9)
 
        if (which == 0):
             newProgram = RainbowSequenceAnimation(self, [COLOR_MAGENTA, COLOR_BLUE], numEach=3)
@@ -362,11 +389,16 @@ class BaseChristmas(threading.Thread):
             newProgram = AllColorCycleAnimation(self, [COLOR_RED,COLOR_GREEN,COLOR_BLUE,COLOR_WHITE,COLOR_MAGENTA,COLOR_YELLOW])
             fps = 1
        elif (which == 6):
-            newProgram = RainbowSequenceAnimation(self, [COLOR_RED, COLOR_GREEN, COLOR_YELLOW, COLOR_BLUE], numEach=8)
-            fps = 20
+            newProgram = RainbowSequenceAnimation(self, [COLOR_ORANGE, COLOR_BLACK], numEach=6)
+            fps = 5
+            #newProgram = RainbowSequenceAnimation(self, [COLOR_RED, COLOR_GREEN, COLOR_YELLOW, COLOR_BLUE], numEach=8)
+            #fps = 20
        elif (which == 7):
             newProgram = ColorMorphAnimation(self, [COLOR_RED,COLOR_GREEN,COLOR_BLUE])
             fps = 5
+       elif (which == 8):
+            newProgram = RandomFillAnimation(self, [COLOR_RED,COLOR_GREEN,COLOR_BLUE,COLOR_YELLOW,COLOR_WHITE,COLOR_MAGENTA])
+            fps = 20
        else:
             print "XXX unknown value for 'which'", which
 
@@ -401,7 +433,12 @@ class BaseChristmas(threading.Thread):
 
            self.check_autochange()
 
-           while (time.time()-tStart) < self.period:
+           if self.animation:
+               period = 1.0/min(self.animation.maxFPS, self.FPS)/self.animation.multFPS
+           else:
+               period = 1.0/5.0
+
+           while (time.time()-tStart) < period:
                time.sleep(0.0001)
 
    def setPower(self, value):
@@ -454,7 +491,6 @@ def getch():
 Christmas = None
 def startup(noSerial=False):
     global Christmas
-    print "XXX Chrstimas Controller Started"
     Christmas = MyChristmas(noSerial)
 
 def main():

@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.template import RequestContext, loader
 from xmascontroller import Christmas, COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_WHITE, COLOR_YELLOW, COLOR_MAGENTA, COLOR_ORANGE, COLOR_BLACK, COLOR_CYAN, \
-                           SolidColorAnimation, RainbowSequenceAnimation, FadeColorAnimation, AllColorCycleAnimation, ColorMorphAnimation
+                           SolidColorAnimation, RainbowSequenceAnimation, FadeColorAnimation, AllColorCycleAnimation, ColorMorphAnimation, RandomFillAnimation
 import xmascontroller
 import json
 
@@ -75,6 +75,8 @@ def setProgram(request):
         Christmas.setAnimation(AllColorCycleAnimation(Christmas, colors))
     elif (program == "morph"):
         Christmas.setAnimation(ColorMorphAnimation(Christmas, colors))
+    elif (program == "randomfill"):
+        Christmas.setAnimation(RandomFillAnimation(Christmas, colors))
 
     return HttpResponse("okey dokey")
 
