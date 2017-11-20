@@ -1,4 +1,4 @@
-COLORS = ["red", "green", "blue", "white", "magenta", "yellow", "cyan",  "black", "orange"];
+﻿COLORS = ["red", "green", "blue", "white", "magenta", "yellow", "cyan",  "black", "orange"];
 
 function xmas() {
     onSingleColor = function(color) {
@@ -94,7 +94,8 @@ function xmas() {
         } else {
             program=$("#custom-function").val();
             count=$("#custom-count").val();
-            url="/xmas/setProgram?program=" + program + "&color=" + colors.join("&color=") + "&count=" + count;
+            bulb_number=$("#bulb_number").val();
+            url="/xmas/setProgram?program=" + program + "&color=" + colors.join("&color=") + "&count=" + count + "&bulb_number=" + bulb_number;
         }
         console.log("sendprogram " + url);
         $.ajax({url: url,
@@ -133,12 +134,19 @@ function xmas() {
 
         $("#custom-count").change(function() { xmas.sendProgram("custom"); });
         $("#custom-function").change(function() { xmas.sendProgram("custom"); });
+        $("#bulb_number").change(function() { xmas.sendProgram("custom"); });
 
         $("#power-on").click(function() { xmas.onPowerOn(); });
         $("#power-off").click(function() { xmas.onPowerOff(); });
 
         $("#random").click(function() { xmas.onRandom(); });
 
+        $(function(){
+            var $select = $("#bulb_number");
+            for (i=0;i<=250;i++){
+                $select.append($('<option></option>').val(i).html(i));
+            }
+        });
     }
 
     parseSettings = function(settings) {

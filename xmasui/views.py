@@ -1,7 +1,8 @@
 from django.shortcuts import render
 from django.template import RequestContext, loader
 from xmascontroller import Christmas, COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_WHITE, COLOR_YELLOW, COLOR_MAGENTA, COLOR_ORANGE, COLOR_BLACK, COLOR_CYAN, \
-                           SolidColorAnimation, RainbowSequenceAnimation, FadeColorAnimation, AllColorCycleAnimation, ColorMorphAnimation, RandomFillAnimation
+                           SolidColorAnimation, RainbowSequenceAnimation, FadeColorAnimation, AllColorCycleAnimation, ColorMorphAnimation, RandomFillAnimation, \
+                           SingleBulbAnimation, SingleBulbChaseAnimation
 import xmascontroller
 import json
 
@@ -64,6 +65,8 @@ def setProgram(request):
 
     count = int(request.GET.get("count","0"))
 
+    bulb_number = int(request.GET.get("bulb_number", 0))
+
     program = request.GET.get("program", "single")
     if (program == "single"):
         Christmas.setAnimation(SolidColorAnimation(Christmas, colors))
@@ -77,6 +80,10 @@ def setProgram(request):
         Christmas.setAnimation(ColorMorphAnimation(Christmas, colors))
     elif (program == "randomfill"):
         Christmas.setAnimation(RandomFillAnimation(Christmas, colors))
+    elif (program == "single_bulb"):
+        Christmas.setAnimation(SingleBulbAnimation(Christmas, colors, bulb_number))
+    elif (program == "single_bulb_chase"):
+        Christmas.setAnimation(SingleBulbChaseAnimation(Christmas, colors))
 
     return HttpResponse("okey dokey")
 

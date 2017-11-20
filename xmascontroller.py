@@ -232,6 +232,48 @@ class SolidColorAnimation(Animation):
 
             self.done = True
 
+class SingleBulbAnimation(Animation):
+    def __init__(self, frameset, colors=[], bulb_number=0):
+        super(SingleBulbAnimation, self).__init__(frameset)
+        self.done = False
+        self.colors = colors
+        self.bulb_number = int(bulb_number)
+        self.program_name = "single_bulb"
+
+    def update(self):
+        if (not self.done):
+            for i in range(0, self.maxIndex):
+                (frame, frameIndex) = self.frameset.indexToFrame(i)
+                if (i==self.bulb_number):
+                    frame.setBulb(frameIndex, 0xCC, self.colors[0])
+                else:
+                    frame.setBulb(frameIndex, 0xCC, COLOR_BLACK)
+
+            self.frameset.displayAllFrames()
+
+            self.done = True
+
+class SingleBulbChaseAnimation(Animation):
+    def __init__(self, frameset, colors=[]):
+        super(SingleBulbChaseAnimation, self).__init__(frameset)
+        self.done = False
+        self.colors = colors
+        self.offset = 0
+        self.program_name = "single_bulb_chase"
+
+    def update(self):
+        if (not self.done):
+            for i in range(0, self.maxIndex):
+                (frame, frameIndex) = self.frameset.indexToFrame(i)
+                if (i==(self.offset % self.maxIndex)):
+                    frame.setBulb(frameIndex, 0xCC, self.colors[0])
+                else:
+                    frame.setBulb(frameIndex, 0xCC, COLOR_BLACK)
+
+            self.offset = self.offset + 1
+
+            self.frameset.displayAllFrames()
+
 class RandomFillAnimation(Animation):
     def __init__(self, frameset, colors=[]):
         super(RandomFillAnimation, self).__init__(frameset)
@@ -259,6 +301,9 @@ class RandomFillAnimation(Animation):
         frame.setBulb(frameIndex, 0xCC, color)
 
         self.frameset.displayAllFrames()
+
+def GET_BULB(x):
+    return ((x>>20) & 0xFF)
 
 class BaseChristmas(threading.Thread):
    def __init__(self, noSerial=False):
@@ -312,7 +357,7 @@ class BaseChristmas(threading.Thread):
 
    def setBulb(self, channel, bulb, intensity, color):
        if self.ser:
-           self.ser.write("%X%02X%02X%03X\r" % (channel, bulb, intensity, color))
+           self.ser.write("%08X\r" % ((channel<<28) | (bulb<<20) | (intensity<<12) | color))
 
    def displayFrame(self, frame):
        for i in range(frame.numBulbs):
@@ -337,11 +382,12 @@ class BaseChristmas(threading.Thread):
            for frame in self.frames:
                if (i<frame.numBulbs):
                    if frame.commands[i] != frame.lastCommands[i]:
+#                       if (GET_BULB(frame.commands[i]) not in [13,14]):
+#                           continue
                        if self.ser:
                            self.ser.write("%08X\r" % frame.commands[i]);
                        #print "%08X\r" % frame.commands[i]
                        frame.lastCommands[i] = frame.commands[i]
-
 
    def totalBulbCount(self):
        total=0
@@ -471,12 +517,20 @@ class BaseChristmas(threading.Thread):
 
 class MyChristmas(BaseChristmas):
    def setup(self):
+       self.frames.append(Frame(1, 52, reverse=True))  # front door
+       self.frames.append(Frame(0, 50))                # garage roof
+       self.frames.append(Frame(2, 32))                # rv park
+       self.frames.append(Frame(3, 36))                # garage door
+       self.frames.append(Frame(4, 13))                # desk top
+       self.frames.append(Frame(5, 13))                # junk
+"""
        self.frames.append(Frame(2, 32))                # rv park
        self.frames.append(Frame(0, 50))                # garage roof
        self.frames.append(Frame(1, 60, reverse=True))  # front door
        self.frames.append(Frame(3, 36))                # garage door
        self.frames.append(Frame(4, 13))                # desk top
        self.frames.append(Frame(5, 13))                # junk
+"""
 
 def getch():
     fd = sys.stdin.fileno()
