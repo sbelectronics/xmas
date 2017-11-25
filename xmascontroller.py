@@ -51,12 +51,13 @@ COLOR_NAME_MAP =  {COLOR_BLACK: "black",
                    COLOR_ORANGE: "orange"}
 
 class Frame:
-    def __init__(self, channel, numBulbs, reverse=False):
+    def __init__(self, channel, numBulbs, reverse=False, badBulbs={}):
         self.commands = [0] * MAX_BULBS
         self.lastCommands = [0] * MAX_BULBS
         self.numBulbs = numBulbs
         self.channel = channel
         self.reverse = reverse
+        self.badBulbs = badBulbs
         self.fill(0xCC, COLOR_BLACK)
 
     def fill(self, intensity, color):
@@ -64,6 +65,8 @@ class Frame:
             self.setBulb(i, intensity, color)
 
     def setBulb(self, bulb, intensity, color):
+        if (bulb in self.badBulbs) and ((self.badBulbs[bulb] & color) != 0):
+            color = COLOR_BLACK
         self.commands[bulb] = (self.channel<<28) | (bulb<<20) | (intensity<<12) | color
 
 
@@ -518,19 +521,13 @@ class BaseChristmas(threading.Thread):
 class MyChristmas(BaseChristmas):
    def setup(self):
        self.frames.append(Frame(1, 52, reverse=True))  # front door
-       self.frames.append(Frame(0, 50))                # garage roof
+       self.frames.append(Frame(0, 50,                 # garage roof
+                                badBulbs={9: COLOR_RED}))
        self.frames.append(Frame(2, 32))                # rv park
        self.frames.append(Frame(3, 36))                # garage door
        self.frames.append(Frame(4, 13))                # desk top
        self.frames.append(Frame(5, 13))                # junk
-"""
-       self.frames.append(Frame(2, 32))                # rv park
-       self.frames.append(Frame(0, 50))                # garage roof
-       self.frames.append(Frame(1, 60, reverse=True))  # front door
-       self.frames.append(Frame(3, 36))                # garage door
-       self.frames.append(Frame(4, 13))                # desk top
-       self.frames.append(Frame(5, 13))                # junk
-"""
+
 
 def getch():
     fd = sys.stdin.fileno()
